@@ -5,6 +5,7 @@ Voxie is an open-source voxel editor and toolchain.
 It features
 
   - Voxel editor
+  - Cross-platform (anything that Qt supports - Windows, Mac, Linux)
   - Block tool, selection tool, bucket fill tool, pencil tool
   - Block copy/paste and move
   - Model scaling and size optimization
@@ -19,6 +20,14 @@ Voxie's editor is written in C++, Qt and Bullet Physics for maximum
 performance.
 Toolchain scripts are written in Python to make exporting to your favorite
 format or engine much more approachable.
+
+Downloads/Building
+------------------
+
+[Windows binaries](http://mp2.dk/voxie-dist.zip)
+
+On Mac/Linux, you can build binaries by using CMake. Voxie depends on Qt and
+Bullet Physics, so make sure you have those dependencies installed.
 
 Why Voxie?
 ----------
