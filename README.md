@@ -1,6 +1,8 @@
 Voxie
 =====
 
+![Voxie](http://mp2.dk/voxieimg.png "Voxie")
+
 Voxie is an open-source voxel editor and toolchain.
 It features
 
