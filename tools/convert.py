@@ -224,7 +224,7 @@ def main():
                     continue
                 path = os.path.join(root, f)
                 if convert_file(path, args.out_dir):
-                    convert_meta(path, args.meta_dir)
+                    convert_meta(path, args.meta)
 
 if __name__ == '__main__':
     main()
