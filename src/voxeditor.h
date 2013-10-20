@@ -38,7 +38,7 @@ public:
     int x, y, z;
     unsigned char v;
 
-    SelectedVoxel(int x, int y, int z, unsigned char v)
+    SelectedVoxel(int x = 0, int y = 0, int z = 0, unsigned char v = 0)
     : x(x), y(y), z(z), v(v)
     {
     }

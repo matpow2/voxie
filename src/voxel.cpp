@@ -61,7 +61,7 @@ void VoxelModel::draw_immediate(float alpha, bool offset)
 
         float noise = glm::simplex(vec3(x, y, z));
         vec3 color3 = vec3(color2.r, color2.g, color2.b);
-        color3 *= (1.0f + noise * 0.04f);
+        color3 *= (1.0f + noise * 0.01f);
         color3 = glm::clamp(color3, 0, 255);
 
         glColor4ub(int(color3.x), int(color3.y), int(color3.z), alpha_c);
@@ -199,6 +199,26 @@ void VoxelFile::save_palette()
     for (int i = 0; i < 64; i++)
         fp.write((char*)&global_palette[i], sizeof(RGBColor));
     fp.close();
+}
+
+unsigned char VoxelFile::get_closest_index(RGBColor c)
+{
+    load_palette();
+    vec3 color_vec(c.r, c.g, c.b);
+    bool is_set = false;
+    float dist;
+    unsigned char current_index = 0;
+    for (int i = 0; i < 256; i++) {
+        RGBColor & pal_color = global_palette[i];
+        vec3 new_vec(pal_color.r, pal_color.g, pal_color.b);
+        float new_dist = glm::distance(color_vec, new_vec);
+        if (is_set && new_dist >= dist)
+            continue;
+        is_set = true;
+        dist = new_dist;
+        current_index = i;
+    }
+    return current_index;
 }
 
 VoxelFile::VoxelFile()

@@ -88,6 +88,7 @@ public:
     ~VoxelFile();
     static void load_palette();
     static void save_palette();
+    static unsigned char get_closest_index(RGBColor c);
     void load_fp(QFile & fp);
     bool load(const QString & filename);
     void save(const QString & filename);

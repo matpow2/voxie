@@ -37,6 +37,8 @@ THE SOFTWARE.
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QRubberBand>
+#include <QApplication>
+#include <QClipboard>
 
 #define CAMERA_ROTATION_SPEED 0.25f
 #define CAMERA_MOVE_SPEED 1.0f
@@ -49,11 +51,6 @@ THE SOFTWARE.
 #define DEFAULT_Y_SIZE 16
 #define DEFAULT_Z_SIZE 16
 #define COORD_LINE_SIZE 200.0f
-
-inline QString get_model_path(const QString & v)
-{
-    return "data/gfx/" + v + ".vox";
-}
 
 // static variable
 
@@ -331,6 +328,8 @@ void VoxelEditor::update_hit()
 
 void VoxelEditor::copy_selected()
 {
+    QClipboard * clipboard = QApplication::clipboard();
+    clipboard->clear();
     copied_list = selected_list;
     window->set_status("Copied voxels");
 }
@@ -345,7 +344,31 @@ void VoxelEditor::delete_selected()
 void VoxelEditor::paste()
 {
     deselect();
-    selected_list = copied_list;
+
+    // test for image in clipboard
+    QClipboard * clipboard = QApplication::clipboard();
+    QImage img = clipboard->image();
+    if (img.isNull()) {
+        // paste whatever we have in the internal copied list
+        selected_list = copied_list;
+    } else {
+        // paste image from clipboard
+        selected_list.clear();
+        SelectedVoxel voxel;
+        for (int x = 0; x < img.width(); x++)
+        for (int y = 0; y < img.height(); y++) {
+            QColor pixel = QColor(img.pixel(x, y));
+            if (pixel.alpha() <= 0)
+                continue;
+            RGBColor c(pixel.red(), pixel.green(), pixel.blue());
+            unsigned char cc = VoxelFile::get_closest_index(c);
+            voxel.x = x;
+            voxel.y = 0;
+            voxel.z = img.height() - y;
+            voxel.v = cc;
+            selected_list.push_back(voxel);
+        }
+    }
     window->set_status("Pasted voxels");
     on_changed();
 }
