@@ -73,7 +73,7 @@ public:
     QRubberBand * rubberband;
     QPoint start_drag;
     SelectedVoxels selected_list;
-    SelectedVoxels copied_list;
+    static SelectedVoxels copied_list;
     PositionArrows pos_arrows;
 
     QPoint last_pos;

@@ -55,6 +55,10 @@ inline QString get_model_path(const QString & v)
     return "data/gfx/" + v + ".vox";
 }
 
+// static variable
+
+SelectedVoxels VoxelEditor::copied_list;
+
 VoxelEditor::VoxelEditor(MainWindow * parent)
 : QGLWidget(parent->gl_format, parent, parent->shared_gl), scale(10.0f), 
   rotate_x(-58.0f), rotate_z(-143.0f), window(parent), pos_arrows(0.05f)
