@@ -271,7 +271,6 @@ void VoxelFile::reset(int x_size, int y_size, int z_size)
     data = new unsigned char[x_size * y_size * z_size];
     memset(data, 255, x_size * y_size * z_size);
     points.clear();
-    update_box();
     reset_shape();
 }
 
@@ -316,9 +315,9 @@ void VoxelFile::resize(int x1, int y1, int z1, int new_x, int new_y, int new_z)
     for (int y = y1; y < y1 + new_y; y++)
     for (int z = z1; z < z1 + new_z; z++) {
         unsigned char c;
-        if (x < 0 || x >= this->x_size ||
-            y < 0 || y >= this->y_size ||
-            z < 0 ||z >= this->z_size)
+        if (x < 0 || x >= x_size ||
+            y < 0 || y >= y_size ||
+            z < 0 ||z >= z_size)
             c = VOXEL_AIR;
         else
             c = get(x, y, z);
@@ -329,13 +328,12 @@ void VoxelFile::resize(int x1, int y1, int z1, int new_x, int new_y, int new_z)
     }
     delete[] data;
     data = new_data;
-    this->x_size = new_x;
-    this->y_size = new_y;
-    this->z_size = new_z;
-    this->x_offset += x1;
-    this->y_offset += y1;
-    this->z_offset += z1;
-    update_box();
+    x_size = new_x;
+    y_size = new_y;
+    z_size = new_z;
+    x_offset += x1;
+    y_offset += y1;
+    z_offset += z1;
 }
 
 void VoxelFile::scale(float sx, float sy, float sz)
@@ -365,7 +363,6 @@ void VoxelFile::scale(float sx, float sy, float sz)
     x_offset = int(x_offset * sx);
     y_offset = int(y_offset * sy);
     z_offset = int(z_offset * sz);
-    update_box();
 }
 
 void VoxelFile::set_offset(int new_x, int new_y, int new_z)
@@ -373,15 +370,16 @@ void VoxelFile::set_offset(int new_x, int new_y, int new_z)
     x_offset = new_x;
     y_offset = new_y;
     z_offset = new_z;
-    update_box();
 }
 
-void VoxelFile::update_box()
+vec3 VoxelFile::get_min()
 {
-    vec3 size = vec3(x_size, y_size, z_size);
-    vec3 offset = vec3(x_offset, y_offset, z_offset);
-    min = offset;
-    max = offset + size;
+    return vec3(x_offset, y_offset, z_offset);
+}
+
+vec3 VoxelFile::get_max()
+{
+    return vec3(x_offset + x_size, y_offset + y_size, z_offset + z_size);
 }
 
 void VoxelFile::optimize()
@@ -461,7 +459,6 @@ void VoxelFile::rotate()
     x_size = new_x;
     y_size = new_y;
     z_size = new_z;
-    update_box();
 }
 
 bool VoxelFile::load(const QString & filename)
@@ -506,7 +503,6 @@ void VoxelFile::load_fp(QFile & fp)
         stream >> z;
         points.push_back(ReferencePoint(name, x, y, z));
     }
-    update_box();
 }
 
 void VoxelFile::save(const QString & filename)
@@ -587,4 +583,19 @@ void VoxelFile::reset_shape()
 {
     delete shape;
     shape = NULL;
+}
+
+void VoxelFile::clone(VoxelFile & other)
+{
+    x_size = other.x_size;
+    y_size = other.y_size;
+    z_size = other.z_size;
+    x_offset = other.x_offset;
+    y_offset = other.y_offset;
+    z_offset = other.z_offset;
+    points = other.points;
+    delete[] data;
+    size_t size = x_size * y_size * z_size;
+    data = new unsigned char[size];
+    memcpy(data, other.data, size);
 }

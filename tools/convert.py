@@ -89,6 +89,8 @@ PALETTE_FILE = os.path.join(os.path.dirname(__file__), '..', 'palette.dat')
 OUT_PATH = r'C:\Users\Mathias\Documents\The Cosmonaut\Assets\Models'
 META_PATH = r'C:\Users\Mathias\Documents\The Cosmonaut\Assets\Meta'
 
+used_palette_entries = set()
+
 def convert_file(filename, out_dir):
     basename = os.path.basename(filename)
     name = os.path.splitext(basename)[0]
@@ -113,6 +115,7 @@ def convert_file(filename, out_dir):
         v = f.blocks.get((x, y, z), None)
         if v is None:
             continue
+        used_palette_entries.add(v)
         color = f.palette[v]
 
         xx, yy, zz = swap_coord(x, y, z)

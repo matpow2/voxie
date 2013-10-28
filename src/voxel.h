@@ -101,9 +101,11 @@ public:
     void resize(int x1, int y1, int z1, int x_size, int y_size, int z_size);
     void scale(float sx, float sy, float sz);
     void set_offset(int x, int y, int z);
-    void update_box();
     void optimize();
     void rotate();
+    void clone(VoxelFile & other);
+    vec3 get_min();
+    vec3 get_max();
 
     inline unsigned char & get(int x, int y, int z)
     {

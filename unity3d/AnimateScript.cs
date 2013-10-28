@@ -97,6 +97,7 @@ public class VoxelData
     }
 }
 
+[ExecuteInEditMode]
 public class AnimateScript : MonoBehaviour
 {
     bool initialized = false;
@@ -107,12 +108,26 @@ public class AnimateScript : MonoBehaviour
     float time_value = 0.0f;
     static Dictionary<string, VoxelData> voxels
         = new Dictionary<string, VoxelData>();
-    [HideInInspector]
+    [System.NonSerialized]
     public string anim_name;
-    [HideInInspector]
+    [System.NonSerialized]
     public int animation_index = 0;
-    [HideInInspector]
+    [System.NonSerialized]
     public GameObject current = null;
+
+    void OnDisable()
+    {
+        if (current == null)
+            return;
+        current.SetActive(false);
+    }
+
+    void OnEnable()
+    {
+        if (current == null)
+            return;
+        current.SetActive(true);
+    }
 
 	void initialize()
     {
@@ -152,7 +167,7 @@ public class AnimateScript : MonoBehaviour
         return item;
     }
 
-	void Update()
+    void update_animation()
     {
         if (anim.interval == 0.0f)
             return;
@@ -164,10 +179,31 @@ public class AnimateScript : MonoBehaviour
             current = anim.models[animation_index];
             current.SetActive(true);
         }
-	}
+    }
+
+    void update_editor()
+    {
+        GameObject obj = animations[0].models[0];
+        MeshFilter[] filters = obj.GetComponentsInChildren<MeshFilter>(true);
+        foreach (MeshFilter filter in filters) {
+            Mesh mesh = filter.sharedMesh;
+            Graphics.DrawMesh(mesh, transform.localToWorldMatrix,
+                              filter.renderer.sharedMaterial, 0);
+        }
+    }
+
+    void Update()
+    {
+        if (Application.isPlaying)
+            update_animation();
+        else
+            update_editor();
+    }
 
     public void set(string name)
     {
+        if (!enabled)
+            return;
         initialize();
         AnimationType new_anim = anim_instances[name];
         if (anim == new_anim)

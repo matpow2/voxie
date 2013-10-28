@@ -107,6 +107,7 @@ void MainWindow::create_menus()
     file_menu = menuBar()->addMenu(tr("&File"));
     file_menu->addAction(new_model_action);
     file_menu->addAction(open_model_action);
+    file_menu->addAction(clone_model_action);
     file_menu->addSeparator();
     file_menu->addAction(save_action);
     file_menu->addAction(save_as_action);
@@ -176,6 +177,9 @@ void MainWindow::create_actions()
  
     open_model_action = new QAction(tr("Open voxel model"), this);
     connect(open_model_action, SIGNAL(triggered()), this, SLOT(open_model()));
+
+    clone_model_action = new QAction(tr("Clone voxel model"), this);
+    connect(clone_model_action, SIGNAL(triggered()), this, SLOT(clone_model()));
  
     save_action = new QAction(tr("&Save"), this);
     save_action->setShortcuts(QKeySequence::Save);
@@ -288,6 +292,17 @@ void MainWindow::open_model()
     VoxelEditor * ed = new VoxelEditor(this);
     QMdiSubWindow * w = mdi->addSubWindow(ed);
     ed->load(name);
+    w->showMaximized();
+}
+
+void MainWindow::clone_model()
+{
+    VoxelFile * voxel = get_voxel();
+    if (voxel == NULL)
+        return;
+    VoxelEditor * ed = new VoxelEditor(this);
+    QMdiSubWindow * w = mdi->addSubWindow(ed);
+    ed->clone(voxel);
     w->showMaximized();
 }
 

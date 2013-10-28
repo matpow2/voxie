@@ -81,6 +81,7 @@ public:
     VoxelEditor(MainWindow * parent);
     void load(const QString & name);
     void reset();
+    void clone(VoxelFile * other);
     void on_changed();
     void update_hit();
     ~VoxelEditor();

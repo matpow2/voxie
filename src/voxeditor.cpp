@@ -83,6 +83,12 @@ void VoxelEditor::reset()
     setWindowModified(true);
 }
 
+void VoxelEditor::clone(VoxelFile * other)
+{
+    voxel->clone(*other);
+    setWindowModified(true);
+}
+
 void VoxelEditor::on_changed()
 {
     update();
@@ -149,12 +155,14 @@ void VoxelEditor::paintGL()
     glDisable(GL_LIGHTING);
 
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-    float x1 = voxel->min.x;
-    float x2 = voxel->max.x;
-    float y1 = voxel->min.y;
-    float y2 = voxel->max.y;
-    float z1 = voxel->min.z;
-    float z2 = voxel->max.z;
+    vec3 min = voxel->get_min();
+    vec3 max = voxel->get_max();
+    float x1 = min.x;
+    float x2 = max.x;
+    float y1 = min.y;
+    float y2 = max.y;
+    float z1 = min.z;
+    float z2 = max.z;
     draw_wireframe_cube(x1, y1, z1, x2, y2, z2, 255, 255, 255, 255);
 
     // checkerboard
@@ -294,7 +302,7 @@ void VoxelEditor::update_hit()
     from_trans.setOrigin(from_vec);
 
     btTransform to_trans;
-    btVector3 to_vec = convert_vec(pos + dir * 5000.0f);
+    btVector3 to_vec = convert_vec(pos + dir * float(1e12));
     to_trans.setIdentity();
     to_trans.setOrigin(to_vec);
 
@@ -306,7 +314,9 @@ void VoxelEditor::update_hit()
     btCollisionWorld::rayTestSingle(from_trans, to_trans, obj, 
         obj->getCollisionShape(), obj_trans, callback);
     if (!callback.hasHit()) {
-        btStaticPlaneShape plane(btVector3(0.0f, 0.0f, 1.0f), voxel->min.z);
+        vec3 min = voxel->get_min();
+        vec3 max = voxel->get_max();
+        btStaticPlaneShape plane(btVector3(0.0f, 0.0f, 1.0f), min.z);
         obj->setCollisionShape(&plane);
         btCollisionWorld::rayTestSingle(from_trans, to_trans, obj, 
             obj->getCollisionShape(), obj_trans, callback);
@@ -314,8 +324,8 @@ void VoxelEditor::update_hit()
             return;
         float x = callback.m_hitPointWorld.x();
         float y = callback.m_hitPointWorld.y();
-        if (x >= voxel->max.x || x < voxel->min.x ||
-            y >= voxel->max.y || y < voxel->min.y)
+        if (x >= max.x || x < min.x ||
+            y >= max.y || y < min.y)
             return;
         hit_floor = true;
     }
