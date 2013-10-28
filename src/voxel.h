@@ -37,6 +37,7 @@ THE SOFTWARE.
 #define VOXEL_AIR 255
 
 extern RGBColor * global_palette;
+extern QString * palette_names;
 
 class VoxelFile;
 class ReferencePoint;

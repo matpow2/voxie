@@ -394,6 +394,7 @@ void VoxelEditor::deselect()
                    v.v);
     }
     selected_list.clear();
+    voxel->reset_shape();
     update();
 }
 

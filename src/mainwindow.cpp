@@ -165,7 +165,9 @@ int MainWindow::get_tool()
 
 void MainWindow::model_changed()
 {
-    get_voxel_editor()->on_changed();
+    VoxelEditor * ed = get_voxel_editor();
+    ed->voxel->reset_shape();
+    ed->on_changed();
 }
 
 void MainWindow::create_actions()

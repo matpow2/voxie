@@ -323,6 +323,7 @@ PaletteEditor::PaletteEditor(MainWindow * parent)
     color_space = new ColorSpace(this);
     color_slider = new ColorSlider(this);
     grid = new PaletteGrid(window);
+    name = new QLineEdit(this);
 
     layout->addWidget(grid, 0, Qt::AlignHCenter);
     layout->addWidget(color_space);
@@ -339,6 +340,13 @@ PaletteEditor::PaletteEditor(MainWindow * parent)
 
     layout->addLayout(rgb_layout);
 
+    QHBoxLayout * name_layout = new QHBoxLayout;
+    name_layout->addWidget(create_label("Name"));
+    connect(name, SIGNAL(textEdited(QString)), this, SLOT(name_changed()));
+    name_layout->addWidget(name);
+
+    layout->addLayout(name_layout);
+
     setLayout(layout);
 
     set_current();
@@ -353,6 +361,7 @@ void PaletteEditor::set_current()
 {
     if (!window->get_voxel())
         return;
+    name->setText(palette_names[grid->palette_index]);
     RGBColor & col = get_palette_color();
     QColor color(col.r, col.g, col.b);
     qreal h, s, v;
@@ -408,4 +417,9 @@ void PaletteEditor::rgb_changed()
     set_current();
     ignore_rgb = false;
     window->model_changed();
+}
+
+void PaletteEditor::name_changed()
+{
+    palette_names[grid->palette_index] = name->text();
 }

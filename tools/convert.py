@@ -86,10 +86,6 @@ class MaterialSet(object):
         return scene.GeometryNode(geom, [matnode])
 
 PALETTE_FILE = os.path.join(os.path.dirname(__file__), '..', 'palette.dat')
-OUT_PATH = r'C:\Users\Mathias\Documents\The Cosmonaut\Assets\Models'
-META_PATH = r'C:\Users\Mathias\Documents\The Cosmonaut\Assets\Meta'
-
-used_palette_entries = set()
 
 def convert_file(filename, out_dir):
     basename = os.path.basename(filename)
@@ -112,10 +108,6 @@ def convert_file(filename, out_dir):
     x_off, y_off, z_off = swap_coord(f.x_offset, f.y_offset, f.z_offset)
 
     for (x, y, z), v in f.blocks.iteritems():
-        v = f.blocks.get((x, y, z), None)
-        if v is None:
-            continue
-        used_palette_entries.add(v)
         color = f.palette[v]
 
         xx, yy, zz = swap_coord(x, y, z)

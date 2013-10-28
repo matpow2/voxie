@@ -23,6 +23,7 @@ THE SOFTWARE.
 #include "color.h"
 
 #include <QWidget>
+#include <QLineEdit>
 
 class MainWindow;
 class PaletteGrid;
@@ -91,6 +92,7 @@ public:
     QSpinBox * r_edit;
     QSpinBox * g_edit;
     QSpinBox * b_edit;
+    QLineEdit * name;
     bool ignore_rgb;
 
     PaletteEditor(MainWindow * parent);
@@ -103,4 +105,5 @@ public:
 
 public slots:
     void rgb_changed();
+    void name_changed();
 };

@@ -28,8 +28,26 @@ THE SOFTWARE.
 #include <QDataStream>
 
 RGBColor * global_palette = NULL;
+QString * palette_names = NULL;
 
 #include <glm/gtc/noise.hpp>
+
+void read_cstring(QDataStream & stream, QString & v)
+{
+    quint8 c;
+    while (!stream.atEnd()) {
+        stream >> c;
+        if (c == 0)
+            break;
+        v.append(c);
+    }
+}
+
+void write_cstring(QDataStream & stream, const QString & v)
+{
+    QByteArray bytes = v.toUtf8();
+    stream.writeRawData(bytes.constData(), bytes.size() + 1);
+}
 
 // VoxelModel
 
@@ -180,12 +198,20 @@ void VoxelFile::load_palette()
     if (global_palette != NULL)
         return;
     global_palette = new RGBColor[256];
+    palette_names = new QString[256];
     QFile fp(PALETTE_FILE);
     if (!fp.open(QIODevice::ReadOnly))
         return;
-    global_palette = new RGBColor[256];
-    for (int i = 0; i < 64; i++)
+    for (int i = 0; i < 256; i++)
         fp.read((char*)&global_palette[i], sizeof(RGBColor));
+    QDataStream stream(&fp);
+    stream.setByteOrder(QDataStream::LittleEndian);
+    if (!fp.atEnd()) {
+        // read names
+        for (int i = 0; i < 256; i++) {
+            read_cstring(stream, palette_names[i]);
+        }
+    }
     fp.close();
 }
 
@@ -196,8 +222,12 @@ void VoxelFile::save_palette()
     QFile fp(PALETTE_FILE);
     if (!fp.open(QIODevice::WriteOnly))
         return;
-    for (int i = 0; i < 64; i++)
+    for (int i = 0; i < 256; i++)
         fp.write((char*)&global_palette[i], sizeof(RGBColor));
+    QDataStream stream(&fp);
+    stream.setByteOrder(QDataStream::LittleEndian);
+    for (int i = 0; i < 256; i++)
+        write_cstring(stream, palette_names[i]);
     fp.close();
 }
 
@@ -497,7 +527,7 @@ void VoxelFile::load_fp(QFile & fp)
     QString name;
     qint32 x, y, z;
     for (int i = 0; i < point_count; i++) {
-        stream >> name;
+        read_cstring(stream, name);
         stream >> x;
         stream >> y;
         stream >> z;
@@ -530,7 +560,7 @@ void VoxelFile::save_fp(QFile & fp)
     ReferencePoints::const_iterator it;
     for (it = points.begin(); it != points.end(); it++) {
         const ReferencePoint & point = *it;
-        stream << point.name;
+        write_cstring(stream, point.name);
         stream << point.x;
         stream << point.y;
         stream << point.z;
