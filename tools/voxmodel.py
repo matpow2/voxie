@@ -19,9 +19,7 @@
 # THE SOFTWARE.
 
 from byteio import ByteReader
-
-def read_string(reader):
-    return reader.read(reader.read_uint8())
+import os
 
 class ReferencePoint(object):
     def __init__(self, reader):
@@ -29,6 +27,44 @@ class ReferencePoint(object):
         self.x = reader.read_int32()
         self.y = reader.read_int32()
         self.z = reader.read_int32()
+
+class Palette(object):
+    def __init__(self, reader, has_names=True):
+        self.palette = []
+        for _ in xrange(256):
+            r = reader.read_uint8()
+            g = reader.read_uint8()
+            b = reader.read_uint8()
+            self.palette.append((r, g, b))
+
+        if not has_names:
+            self.names = None
+            return
+
+        self.names = []
+        for _ in xrange(256):
+            self.names.append(reader.read_string())
+
+    def write(self, writer):
+        for (r, g, b) in self.palette:
+            writer.write_uint8(r)
+            writer.write_uint8(g)
+            writer.write_uint8(b)
+
+        if not self.names:
+            return
+
+        for name in self.names:
+            writer.write_string(name)
+
+PALETTE_FILE = os.path.join(os.path.dirname(__file__), '..', 'palette.dat')
+
+def read_global_palette(filename=None):
+    if filename is None:
+        filename = PALETTE_FILE
+    data = open(filename, 'rb').read()
+    reader = ByteReader(data)
+    return Palette(reader)
 
 class VoxelModel(object):
     def __init__(self, reader):
@@ -50,11 +86,7 @@ class VoxelModel(object):
                         continue
                     self.blocks[(x, y, z)] = v
 
-        for i in xrange(256):
-            r = reader.read_uint8()
-            g = reader.read_uint8()
-            b = reader.read_uint8()
-            self.palette.append((r, g, b))
+        self.palette = Palette(reader, False).palette
 
         self.points = []
         for _ in xrange(reader.read_uint8()):

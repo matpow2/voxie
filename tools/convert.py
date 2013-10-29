@@ -30,7 +30,9 @@ def swap_coord(x, y, z):
     return x, z, y
 
 class MaterialSet(object):
-    def __init__(self, name, mesh, color):
+    def __init__(self, name, mesh, color, vertices, normals):
+        self.vertices = vertices
+        self.normals = normals
         self.postfix = name
         r, g, b = color
         color = (r / 255.0, g / 255.0, b / 255.0)
@@ -39,8 +41,6 @@ class MaterialSet(object):
         name = "material%s" % name
         self.mat = material.Material(name, name, self.effect)
         self.indices = []
-        self.vertices = []
-        self.normals = []
         self.mesh = mesh
 
     def add_quad(self, nx, ny, nz, x1, y1, z1, x2, y2, z2,
@@ -85,13 +85,12 @@ class MaterialSet(object):
         matnode = scene.MaterialNode(materialref, self.mat, inputs=[])
         return scene.GeometryNode(geom, [matnode])
 
-PALETTE_FILE = os.path.join(os.path.dirname(__file__), '..', 'palette.dat')
 
-def convert_file(filename, out_dir):
+def convert_file(filename, out_dir, force):
     basename = os.path.basename(filename)
     name = os.path.splitext(basename)[0]
     out_path = os.path.join(out_dir, '%s.dae' % name)
-    if not is_file_changed(filename, out_path):
+    if not force and not is_file_changed(filename, out_path):
         print 'Skipping', basename
         return False
 
@@ -107,9 +106,10 @@ def convert_file(filename, out_dir):
 
     x_off, y_off, z_off = swap_coord(f.x_offset, f.y_offset, f.z_offset)
 
-    for (x, y, z), v in f.blocks.iteritems():
-        color = f.palette[v]
+    vertices = []
+    normals = []
 
+    for (x, y, z), v in f.blocks.iteritems():
         xx, yy, zz = swap_coord(x, y, z)
         x1 = (xx + x_off) * scale + gx
         y1 = (yy + y_off) * scale + gy
@@ -118,11 +118,13 @@ def convert_file(filename, out_dir):
         y2 = (yy + y_off + 1) * scale + gy
         z2 = (zz + z_off + 1) * scale + gz
 
+        color = f.palette[v]
         try:
             s = sets[color]
         except KeyError:
-            s = MaterialSet(v, mesh, color)
+            s = MaterialSet(v, mesh, color, vertices, normals)
             sets[color] = s
+
 
         # Left face
         if not f.is_solid(x, y, z+1):
@@ -172,15 +174,40 @@ def convert_file(filename, out_dir):
                        x1, y2, z2,
                        x1, y2, z1)
 
-    nodes = []
+    vert_name = 'vertices'
+    vert_src = source.FloatSource(vert_name, numpy.array(vertices),
+                                  ('X', 'Y', 'Z'))
+    normal_name = 'normals'
+    normal_src = source.FloatSource(normal_name,
+                                    numpy.array(normals),
+                                    ('X', 'Y', 'Z'))
+    geom_name = "geometry"
+    geom = geometry.Geometry(mesh, name, name, [vert_src, normal_src])
+
+    matnodes = []
     for s in sets.values():
-        nodes.append(s.apply())
-    node = scene.Node("node0", children=nodes)
+        mesh.effects.append(s.effect)
+        mesh.materials.append(s.mat)
+
+        postfix = s.postfix
+        input_list = source.InputList()
+        input_list.addInput(0, 'VERTEX', "#" + vert_name)
+        input_list.addInput(1, 'NORMAL', "#" + normal_name)
+        materialref = 'material%s' % postfix
+        triset = geom.createTriangleSet(numpy.array(s.indices), input_list,
+                                        materialref)
+        geom.primitives.append(triset)
+        mesh.geometries.append(geom)
+        matnodes.append(scene.MaterialNode(materialref, s.mat, inputs=[]))
+    
+    geom_node = scene.GeometryNode(geom, matnodes)
+
+    node = scene.Node(basename, children=[geom_node])
     myscene = scene.Scene("scene", [node])
     mesh.scenes.append(myscene)
     mesh.scene = myscene
-
     mesh.write(out_path)
+
     shutil.copystat(filename, out_path)
     print 'Converted', basename
     return True
@@ -207,6 +234,9 @@ def main():
                         help='output directory')
     parser.add_argument('--meta', metavar='meta_dir', type=str, default=None,
                         help='metafile directory for Unity3D')
+    parser.add_argument('--force', action='store_const',
+                        const=True, default=False,
+                        help='force conversion even if file was not updated')
     args = parser.parse_args()
 
     if os.path.isfile(args.input):
@@ -218,7 +248,7 @@ def main():
                 if not f.endswith('.vxi'):
                     continue
                 path = os.path.join(root, f)
-                if convert_file(path, args.out_dir):
+                if convert_file(path, args.out_dir, args.force):
                     convert_meta(path, args.meta)
 
 if __name__ == '__main__':

@@ -54,6 +54,10 @@ class ByteWriter(object):
     def write_uint32(self, value):
         self.write_struct(UINT32, value)
 
+    def write_string(self, value):
+        self.write(value)
+        self.write_uint8(0)
+
 class ByteReader(object):
     def __init__(self, data=None, fp=None):
         if data is not None:
@@ -82,3 +86,12 @@ class ByteReader(object):
 
     def read_uint32(self):
         return self.read_struct(UINT32)
+
+    def read_string(self):
+        value = ''
+        while True:
+            c = self.read(1)
+            if c in ('\x00', ''):
+                break
+            value += c
+        return value

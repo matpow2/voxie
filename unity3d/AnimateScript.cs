@@ -33,19 +33,27 @@ using System.IO;
 [System.Serializable]
 public class AnimationType
 {
+    public enum LoopType
+    {
+        Forward = 0,
+        PingPong = 1
+    }
+
     public string name;
     public List<GameObject> models = new List<GameObject>();
     public float interval;
+    public int loops = -1;
+    public LoopType type = LoopType.Forward;
 }
 
 public class VoxelData
 {
     public uint x_size, y_size, z_size;
     public int x_offset, y_offset, z_offset;
-    public byte[] data = null;
-    public Material[] palette = new Material[256];
+    public byte[] data;
+    public Material[] palette;
 
-    public VoxelData(string name, List<Material> materials)
+    public VoxelData(string name, Material[] materials)
     {
         TextAsset asset = (TextAsset)Resources.Load("Meta/" + name);
         MemoryStream ms = new MemoryStream(asset.bytes);
@@ -57,10 +65,12 @@ public class VoxelData
         z_offset = reader.ReadInt32();
         y_offset = reader.ReadInt32();
         data = reader.ReadBytes((int)(x_size * y_size * z_size));
+        byte[] raw_palette = reader.ReadBytes(256*3);
+        palette = new Material[256];
         for (int i = 0; i < 256; i++) {
-            float r = reader.ReadByte() / 255.0f;
-            float g = reader.ReadByte() / 255.0f;
-            float b = reader.ReadByte() / 255.0f;
+            float r = raw_palette[i*3] / 255.0f;
+            float g = raw_palette[i*3+1] / 255.0f;
+            float b = raw_palette[i*3+2] / 255.0f;
             Material result = null;
             foreach (Material mat in materials) {
                 if (mat.color.r == r && mat.color.g == g && mat.color.b == b) {
@@ -114,6 +124,8 @@ public class AnimateScript : MonoBehaviour
     public int animation_index = 0;
     [System.NonSerialized]
     public GameObject current = null;
+    int loops = -1;
+    bool reversed = false;
 
     void OnDisable()
     {
@@ -138,6 +150,8 @@ public class AnimateScript : MonoBehaviour
         foreach (AnimationType anim_data in animations) {
             AnimationType new_anim = new AnimationType();
             new_anim.interval = anim_data.interval;
+            new_anim.loops = anim_data.loops;
+            new_anim.type = anim_data.type;
             anim_instances[anim_data.name] = new_anim;
             foreach (GameObject obj in anim_data.models) {
                 GameObject new_obj = (GameObject)Instantiate(obj, pos,
@@ -148,34 +162,72 @@ public class AnimateScript : MonoBehaviour
                 new_obj.transform.localScale = scale;
                 new_anim.models.Add(new_obj);
                 new_obj.SetActive(false);
+
+                // cache meta
+                get_meta(new_obj);
             }
         }
 	}
 
     public VoxelData get_meta()
     {
+        return get_meta(current);
+    }
+
+    public VoxelData get_meta(GameObject model)
+    {
         VoxelData item;
-        if(!voxels.TryGetValue(current.name, out item)) {
-            List<Material> materials = new List<Material>();
-            materials.Add(current.renderer.material);
-            foreach (Transform transform in current.transform) {
-                materials.Add(transform.renderer.material);
-            }
-            item = new VoxelData(current.name, materials);
-            voxels[current.name] = item;
+        if(!voxels.TryGetValue(model.name, out item)) {
+            item = new VoxelData(model.name, model.renderer.sharedMaterials);
+            voxels[model.name] = item;
         }
         return item;
+    }
+
+    void on_loop(int new_index)
+    {
+        if (loops != -1) {
+            loops--;
+            if (loops == 0)
+                return;
+        }
+
+        switch (anim.type) {
+            case AnimationType.LoopType.Forward:
+                new_index = 0;
+                break;
+            case AnimationType.LoopType.PingPong:
+                reversed = !reversed;
+                if (reversed)
+                    new_index = anim.models.Count - 2;
+                else
+                    new_index = 1;
+                break;
+        }
+
+        animation_index = new_index;
+
     }
 
     void update_animation()
     {
         if (anim.interval == 0.0f)
             return;
+        if (loops == 0)
+            return;
         time_value += Time.deltaTime;
         while (time_value > anim.interval) {
             time_value -= anim.interval;
             anim.models[animation_index].SetActive(false);
-            animation_index = (animation_index+1) % anim.models.Count;
+            int new_index = animation_index;
+            if (reversed)
+                new_index--;
+            else
+                new_index++;
+            if (new_index >= anim.models.Count || new_index < 0)
+                on_loop(new_index);
+            else
+                animation_index = new_index;
             current = anim.models[animation_index];
             current.SetActive(true);
         }
@@ -184,11 +236,12 @@ public class AnimateScript : MonoBehaviour
     void update_editor()
     {
         GameObject obj = animations[0].models[0];
-        MeshFilter[] filters = obj.GetComponentsInChildren<MeshFilter>(true);
-        foreach (MeshFilter filter in filters) {
-            Mesh mesh = filter.sharedMesh;
-            Graphics.DrawMesh(mesh, transform.localToWorldMatrix,
-                              filter.renderer.sharedMaterial, 0);
+        MeshFilter filter = obj.GetComponent<MeshFilter>();
+        Mesh mesh = filter.sharedMesh;
+        for (int i = 0; i < mesh.subMeshCount; i++) {
+            Material mat = filter.renderer.sharedMaterials[i];
+            Graphics.DrawMesh(mesh, transform.localToWorldMatrix, mat, 0, null,
+                              i);
         }
     }
 
@@ -212,8 +265,10 @@ public class AnimateScript : MonoBehaviour
             anim.models[animation_index].SetActive(false);
         anim = new_anim;
         anim_name = name;
+        loops = anim.loops;
         animation_index = 0;
         time_value = 0.0f;
+        reversed = false;
         current = new_anim.models[animation_index];
         current.SetActive(true);
     }
