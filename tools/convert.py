@@ -26,7 +26,8 @@ import shutil
 import math
 import argparse
 
-def swap_coord(x, y, z):
+def swap_coord(x, y, z, f):
+    x = -x
     return x, z, y
 
 class MaterialSet(object):
@@ -104,13 +105,14 @@ def convert_file(filename, out_dir, force):
 
     sets = {}
 
-    x_off, y_off, z_off = swap_coord(f.x_offset, f.y_offset, f.z_offset)
+    x_off, y_off, z_off = swap_coord(f.x_offset, f.y_offset, f.z_offset, f)
+    x_off -= 1
 
     vertices = []
     normals = []
 
     for (x, y, z), v in f.blocks.iteritems():
-        xx, yy, zz = swap_coord(x, y, z)
+        xx, yy, zz = swap_coord(x, y, z, f)
         x1 = (xx + x_off) * scale + gx
         y1 = (yy + y_off) * scale + gy
         z1 = (zz + z_off) * scale + gz
@@ -159,7 +161,7 @@ def convert_file(filename, out_dir, force):
                        x2, y1, z1)
 
         # Right face
-        if not f.is_solid(x + 1, y, z):
+        if not f.is_solid(x - 1, y, z):
             s.add_quad(1.0, 0.0, 0.0,
                        x2, y1, z1,
                        x2, y2, z1,
@@ -167,7 +169,7 @@ def convert_file(filename, out_dir, force):
                        x2, y1, z2)
 
         # Left Face
-        if not f.is_solid(x - 1, y, z):
+        if not f.is_solid(x + 1, y, z):
             s.add_quad(-1.0, 0.0, 0.0,
                        x1, y1, z1,
                        x1, y1, z2,
@@ -199,11 +201,20 @@ def convert_file(filename, out_dir, force):
         geom.primitives.append(triset)
         mesh.geometries.append(geom)
         matnodes.append(scene.MaterialNode(materialref, s.mat, inputs=[]))
+
+
     
     geom_node = scene.GeometryNode(geom, matnodes)
+    geom_parent_node = scene.Node(name, children=[geom_node])
+    nodes = [geom_parent_node]
 
-    node = scene.Node(basename, children=[geom_node])
-    myscene = scene.Scene("scene", [node])
+    for point in f.points:
+        x, y, z = swap_coord(point.x, point.y, point.z, f)
+        transform = scene.TranslateTransform(x, y, z)
+        ref_node = scene.Node(point.name, transforms=[transform])
+        nodes.append(ref_node)
+
+    myscene = scene.Scene("scene", nodes)
     mesh.scenes.append(myscene)
     mesh.scene = myscene
     mesh.write(out_path)
