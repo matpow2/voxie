@@ -22,7 +22,7 @@
 High-level byte read/writing and pack/unpacking from files and data
 """
 
-from cStringIO import StringIO
+from io import BytesIO
 import struct
 
 INT8 = struct.Struct('<b')
@@ -33,7 +33,7 @@ UINT32 = struct.Struct('<I')
 class ByteWriter(object):
     def __init__(self, fp=None):
         if fp is None:
-            fp = StringIO()
+            fp = BytesIO()
         self.fp = fp
         self.write = fp.write
         self.seek = fp.seek
@@ -61,7 +61,7 @@ class ByteWriter(object):
 class ByteReader(object):
     def __init__(self, data=None, fp=None):
         if data is not None:
-            fp = StringIO(data)
+            fp = BytesIO(data)
         if fp is None:
             raise ValueError('need to specify data or fp')
         self.fp = fp
@@ -88,10 +88,10 @@ class ByteReader(object):
         return self.read_struct(UINT32)
 
     def read_string(self):
-        value = ''
+        value = b''
         while True:
             c = self.read(1)
-            if c in ('\x00', ''):
+            if c in (b'\x00', b''):
                 break
             value += c
         return value

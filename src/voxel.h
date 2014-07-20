@@ -113,6 +113,13 @@ public:
         return data[z + y * z_size + x * z_size * y_size];
     }
 
+    inline unsigned char get_safe(int x, int y, int z)
+    {
+        if (!is_solid(x, y, z))
+            return VOXEL_AIR;
+        return get(x, y, z);
+    }
+
     inline const RGBColor & get_color(int x, int y, int z)
     {
         return global_palette[get(x, y, z)];

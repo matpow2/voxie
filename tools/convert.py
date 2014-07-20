@@ -19,80 +19,56 @@
 # THE SOFTWARE.
 
 import byteio
-from voxmodel import VoxelModel
+from voxmodel import VoxelModel, read_global_palette
 from collada import *
 import numpy
 import shutil
 import math
 import argparse
+import mesher
 
 def swap_coord(x, y, z, f):
     x = -x
     return x, z, y
 
 class MaterialSet(object):
-    def __init__(self, name, mesh, color, vertices, normals):
+    def __init__(self, set_name, index, mesh, color, vertices, normals):
         self.vertices = vertices
         self.normals = normals
-        self.postfix = name
+        self.postfix = index
         r, g, b = color
         color = (r / 255.0, g / 255.0, b / 255.0)
-        self.effect = material.Effect("effect%s" % name, [], "phong", 
+        self.effect = material.Effect("effect%s" % index, [], "phong",
                                       diffuse=color, specular=(0, 1, 0))
-        name = "material%s" % name
-        self.mat = material.Material(name, name, self.effect)
+        self.set_name = set_name
+        self.mat = material.Material(set_name, set_name, self.effect)
         self.indices = []
         self.mesh = mesh
 
-    def add_quad(self, nx, ny, nz, x1, y1, z1, x2, y2, z2,
-                 x3, y3, z3, x4, y4, z4):
-        vert_index = len(self.vertices) / 3
+    def add_vertex(self, x, y, z, nx, ny, nz):
+        vertex = (x, y, z)
+        try:
+            vert_index = self.vertices.index(vertex)
+        except ValueError:
+            vert_index = len(self.vertices)
+            self.vertices.append(vertex)
+
         normal = (nx, ny, nz)
         try:
             normal_index = self.normals.index(normal)
         except ValueError:
+            normal_index = len(self.normals)
             self.normals.append(normal)
-            normal_index = len(self.normals) - 1
-        self.vertices.extend([x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4])
-        self.indices.extend([vert_index, normal_index,
-                             vert_index + 1, normal_index,
-                             vert_index + 2, normal_index,
-                             vert_index + 2, normal_index,
-                             vert_index + 3, normal_index,
-                             vert_index, normal_index])
 
-    def apply(self):
-        self.mesh.effects.append(self.effect)
-        self.mesh.materials.append(self.mat)
-
-        postfix = self.postfix
-
-        vert_name = 'vertices%s' % postfix
-        vert_src = source.FloatSource(vert_name, numpy.array(self.vertices),
-                                      ('X', 'Y', 'Z'))
-        normal_name = 'normals%s' % postfix
-        normal_src = source.FloatSource(normal_name, numpy.array(self.normals),
-                                        ('X', 'Y', 'Z'))
-        name = "geometry%s" % postfix
-        geom = geometry.Geometry(self.mesh, name, name, [vert_src, normal_src])
-        input_list = source.InputList()
-        input_list.addInput(0, 'VERTEX', "#" + vert_name)
-        input_list.addInput(1, 'NORMAL', "#" + normal_name)
-        materialref = 'material%s' % postfix
-        triset = geom.createTriangleSet(numpy.array(self.indices), input_list,
-                                        materialref)
-        geom.primitives.append(triset)
-        self.mesh.geometries.append(geom)
-        matnode = scene.MaterialNode(materialref, self.mat, inputs=[])
-        return scene.GeometryNode(geom, [matnode])
+        self.indices.extend([vert_index, normal_index])
 
 
-def convert_file(filename, out_dir, force):
+def convert_file(filename, out_dir, palette, force):
     basename = os.path.basename(filename)
     name = os.path.splitext(basename)[0]
     out_path = os.path.join(out_dir, '%s.dae' % name)
     if not force and not is_file_changed(filename, out_path):
-        print 'Skipping', basename
+        print('Skipping', basename)
         return False
 
     v = open(filename, 'rb').read()
@@ -101,80 +77,27 @@ def convert_file(filename, out_dir, force):
     mesh = Collada()
 
     scale = 1.0
-    gx = gy = gz = 0.0
 
     sets = {}
 
     x_off, y_off, z_off = swap_coord(f.x_offset, f.y_offset, f.z_offset, f)
-    x_off -= 1
 
     vertices = []
     normals = []
 
-    for (x, y, z), v in f.blocks.iteritems():
-        xx, yy, zz = swap_coord(x, y, z, f)
-        x1 = (xx + x_off) * scale + gx
-        y1 = (yy + y_off) * scale + gy
-        z1 = (zz + z_off) * scale + gz
-        x2 = (xx + x_off + 1) * scale + gx
-        y2 = (yy + y_off + 1) * scale + gy
-        z2 = (zz + z_off + 1) * scale + gz
+    out = mesher.mesh(f)
 
-        color = f.palette[v]
-        try:
-            s = sets[color]
-        except KeyError:
-            s = MaterialSet(v, mesh, color, vertices, normals)
-            sets[color] = s
+    for v, points in out.items():
+        set_name = '%s - %s' % (v, palette.names[v].replace('/', ' or '))
+        color = palette.palette[v]
+        s = MaterialSet(set_name, v, mesh, color, vertices, normals)
+        sets[color] = s
 
-
-        # Left face
-        if not f.is_solid(x, y, z+1):
-            s.add_quad(0.0, 1.0, 0.0,
-                       x1, y2, z1,
-                       x1, y2, z2,
-                       x2, y2, z2,
-                       x2, y2, z1)
-
-        # Right face
-        if not f.is_solid(x, y, z-1):
-            s.add_quad(0.0, -1.0, 0.0,
-                       x1, y1, z1,
-                       x2, y1, z1,
-                       x2, y1, z2,
-                       x1, y1, z2)
-
-        # Top face
-        if not f.is_solid(x, y+1, z):
-            s.add_quad(0.0, 0.0, 1.0,
-                       x1, y1, z2,
-                       x2, y1, z2,
-                       x2, y2, z2,
-                       x1, y2, z2)
-
-        # Bottom face
-        if not f.is_solid(x, y-1, z):
-            s.add_quad(0.0, 0.0, -1.0,
-                       x1, y1, z1,
-                       x1, y2, z1,
-                       x2, y2, z1,
-                       x2, y1, z1)
-
-        # Right face
-        if not f.is_solid(x - 1, y, z):
-            s.add_quad(1.0, 0.0, 0.0,
-                       x2, y1, z1,
-                       x2, y2, z1,
-                       x2, y2, z2,
-                       x2, y1, z2)
-
-        # Left Face
-        if not f.is_solid(x + 1, y, z):
-            s.add_quad(-1.0, 0.0, 0.0,
-                       x1, y1, z1,
-                       x1, y1, z2,
-                       x1, y2, z2,
-                       x1, y2, z1)
+        for point in reversed(points):
+            x, y, z, nx, ny, nz = point
+            xx, yy, zz = swap_coord(x, y, z, f)
+            nx, ny, nz = swap_coord(nx, ny, nz, f)
+            s.add_vertex(xx + x_off, yy + y_off, zz + z_off, nx, ny, nz)
 
     vert_name = 'vertices'
     vert_src = source.FloatSource(vert_name, numpy.array(vertices),
@@ -187,7 +110,7 @@ def convert_file(filename, out_dir, force):
     geom = geometry.Geometry(mesh, name, name, [vert_src, normal_src])
 
     matnodes = []
-    for s in sets.values():
+    for s in list(sets.values()):
         mesh.effects.append(s.effect)
         mesh.materials.append(s.mat)
 
@@ -203,7 +126,7 @@ def convert_file(filename, out_dir, force):
         matnodes.append(scene.MaterialNode(materialref, s.mat, inputs=[]))
 
 
-    
+
     geom_node = scene.GeometryNode(geom, matnodes)
     geom_parent_node = scene.Node(name, children=[geom_node])
     nodes = [geom_parent_node]
@@ -220,7 +143,7 @@ def convert_file(filename, out_dir, force):
     mesh.write(out_path)
 
     shutil.copystat(filename, out_path)
-    print 'Converted', basename
+    print('Converted', basename)
     return True
 
 def convert_meta(src, out_dir):
@@ -250,8 +173,10 @@ def main():
                         help='force conversion even if file was not updated')
     args = parser.parse_args()
 
+    palette = read_global_palette()
+
     if os.path.isfile(args.input):
-        convert_file(args.input, args.out_dir)
+        convert_file(args.input, args.out_dir, palette)
         convert_meta(args.input, args.meta_dir)
     else:
         for root, dirs, files in os.walk(args.input):
@@ -259,7 +184,7 @@ def main():
                 if not f.endswith('.vxi'):
                     continue
                 path = os.path.join(root, f)
-                if convert_file(path, args.out_dir, args.force):
+                if convert_file(path, args.out_dir, palette, args.force):
                     convert_meta(path, args.meta)
 
 if __name__ == '__main__':
