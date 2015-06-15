@@ -66,6 +66,7 @@ VoxelEditor::VoxelEditor(MainWindow * parent)
     rubberband = new QRubberBand(QRubberBand::Rectangle);
     rubberband->setWindowOpacity((qreal)0.5);
     rubberband->setWindowFlags(Qt::ToolTip);
+    set_window_file_path(this, "(Untitled)");
 }
 
 void VoxelEditor::load(const QString & filename)
