@@ -10,7 +10,7 @@ set(APP_NAME_FULL "Voxie")
 set(ROOT_DIR "${PROJECT_SOURCE_DIR}")
 set(SRC_DIR "${ROOT_DIR}/src")
 set(BUILD_DIR "${PROJECT_BINARY_DIR}")
-set(TEMP_DIR "${BUILD_DIR}/tmp"¨)
+set(TEMP_DIR "${BUILD_DIR}/tmp")
 
 # compiler & linker options
 
